@@ -43,12 +43,33 @@ export default function SoundButton({
   }, []);
 
   // Handle play/pause
-  const handlePlayPause = () => {
+  const handlePlayPause = (event: React.MouseEvent | React.TouchEvent) => {
+    // Prevent default to avoid double-tap zoom on mobile
+    event.preventDefault();
+    
+    // Add touch-specific handling
+    if (event.type === 'touchstart') {
+      console.log('👆 Touch event detected on button');
+    }
+    
     if (isPlaying) {
       onPause();
     } else {
       onPlay(sound);
     }
+  };
+
+  // Handle touch events specifically for mobile
+  const handleTouchStart = (event: React.TouchEvent) => {
+    console.log('👆 Touch start on sound button:', sound.title);
+    // Add visual feedback for touch
+    event.currentTarget.style.transform = 'scale(0.95)';
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    console.log('👆 Touch end on sound button:', sound.title);
+    // Restore normal size
+    event.currentTarget.style.transform = 'scale(1)';
   };
 
   // Handle volume change
@@ -87,6 +108,8 @@ export default function SoundButton({
       {/* Main Button */}
       <button
         onClick={handlePlayPause}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         className={`
           w-full h-20 sm:h-24 bg-gradient-to-br from-primary-500 to-primary-600 
           hover:from-primary-600 hover:to-primary-700 

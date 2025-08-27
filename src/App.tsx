@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Music, Settings, Download, Upload, Trash2, Menu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Music, Settings, Download, Upload, Trash2, Menu, Volume2, VolumeX } from 'lucide-react';
 import { useAudio } from './contexts/AudioContext';
 import SoundGrid from './components/SoundGrid';
 import { cleanupFFmpeg } from './utils/audioUtils';
@@ -8,6 +8,93 @@ export default function App() {
   const { sounds, clearSounds } = useAudio();
   const [activeTab, setActiveTab] = useState<'grid' | 'settings'>('grid');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [isAudioInitialized, setIsAudioInitialized] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  // Initialize Web Audio API on first user interaction
+  useEffect(() => {
+    const initializeAudio = () => {
+      if (!isAudioInitialized && typeof window !== 'undefined') {
+        try {
+          // Create AudioContext on first user interaction
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          setAudioContext(ctx);
+          setIsAudioInitialized(true);
+          setAudioError(null);
+          console.log('🎵 Web Audio API initialized successfully in App');
+        } catch (error) {
+          console.error('❌ Failed to initialize Web Audio API in App:', error);
+          setAudioError('Failed to initialize audio system. Please refresh the page and try again.');
+        }
+      }
+    };
+
+    // Initialize on various user interactions
+    const events = ['touchstart', 'mousedown', 'keydown', 'scroll'];
+    events.forEach(event => {
+      document.addEventListener(event, initializeAudio, { once: true, passive: true });
+    });
+
+    // Add specific touch handling for mobile devices
+    const handleTouch = (event: TouchEvent) => {
+      console.log('👆 Touch event detected in App:', event.type);
+      initializeAudio();
+    };
+
+    document.addEventListener('touchstart', handleTouch, { passive: true });
+    document.addEventListener('touchend', handleTouch, { passive: true });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, initializeAudio);
+      });
+      document.removeEventListener('touchstart', handleTouch);
+      document.removeEventListener('touchend', handleTouch);
+    };
+  }, [isAudioInitialized]);
+
+  // Resume AudioContext if suspended
+  const resumeAudioContext = async () => {
+    if (audioContext && audioContext.state === 'suspended') {
+      try {
+        await audioContext.resume();
+        console.log('🎵 AudioContext resumed in App');
+        setAudioError(null);
+      } catch (error) {
+        console.error('❌ Failed to resume AudioContext in App:', error);
+        setAudioError('Audio system is suspended. Please interact with the page to resume.');
+      }
+    }
+  };
+
+  // Test audio functionality
+  const testAudio = async () => {
+    try {
+      await resumeAudioContext();
+      
+      if (audioContext) {
+        // Create a simple test tone
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+        
+        setAudioError(null);
+        console.log('🎵 Audio test successful');
+      }
+    } catch (error) {
+      console.error('❌ Audio test failed:', error);
+      setAudioError('Audio test failed. Please check your device settings.');
+    }
+  };
 
   // Handle clear all sounds
   const handleClearAll = () => {
@@ -125,6 +212,54 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {/* Audio Error Display */}
+        {audioError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="text-red-600">🔊</div>
+              <div className="flex-1">
+                <p className="text-red-700 font-medium">Audio System Error</p>
+                <p className="text-red-600 text-sm">{audioError}</p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={testAudio}
+                  className="px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200 transition-colors"
+                >
+                  Test Audio
+                </button>
+                <button
+                  onClick={() => setAudioError(null)}
+                  className="px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Audio Status Display */}
+        {!audioError && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6">
+            <div className="flex items-center space-x-2">
+              <div className="text-green-600">🎵</div>
+              <p className="text-green-700 text-sm">
+                Audio system: {isAudioInitialized ? 'Ready' : 'Initializing...'}
+                {audioContext && audioContext.state === 'suspended' && ' (Suspended - tap to resume)'}
+              </p>
+              {audioContext && audioContext.state === 'suspended' && (
+                <button
+                  onClick={resumeAudioContext}
+                  className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
+                >
+                  Resume
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'grid' ? (
           <SoundGrid />
         ) : (

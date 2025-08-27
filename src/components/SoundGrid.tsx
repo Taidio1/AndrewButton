@@ -1,9 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Plus, Grid3X3, List, Filter, Menu } from 'lucide-react';
 import { useAudio } from '../contexts/AudioContext';
 import { Sound } from '../types';
 import SoundButton from './SoundButton';
 import UploadForm from './UploadForm';
+import { 
+  isMobile, 
+  isTouchDevice, 
+  createMobileAudioElement, 
+  handleMobileAutoplay, 
+  getMobileAudioErrorMessage 
+} from '../utils/mobileAudioUtils';
 
 export default function SoundGrid() {
   console.log('🎵 SoundGrid component rendered');
@@ -16,6 +23,61 @@ export default function SoundGrid() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [error, setError] = useState<string | null>(null);
   const [showMobileControls, setShowMobileControls] = useState(false);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [isAudioInitialized, setIsAudioInitialized] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isTouchSupported, setIsTouchSupported] = useState(false);
+
+  // Check device capabilities
+  useEffect(() => {
+    setIsMobileDevice(isMobile());
+    setIsTouchSupported(isTouchDevice());
+    console.log('📱 Device info:', { 
+      isMobile: isMobile(), 
+      isTouch: isTouchDevice() 
+    });
+  }, []);
+
+  // Initialize Web Audio API on first user interaction
+  useEffect(() => {
+    const initializeAudio = () => {
+      if (!isAudioInitialized && typeof window !== 'undefined') {
+        try {
+          // Create AudioContext on first user interaction
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          setAudioContext(ctx);
+          setIsAudioInitialized(true);
+          console.log('🎵 Web Audio API initialized successfully');
+        } catch (error) {
+          console.error('❌ Failed to initialize Web Audio API:', error);
+        }
+      }
+    };
+
+    // Initialize on various user interactions
+    const events = ['touchstart', 'mousedown', 'keydown', 'scroll'];
+    events.forEach(event => {
+      document.addEventListener(event, initializeAudio, { once: true, passive: true });
+    });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, initializeAudio);
+      });
+    };
+  }, [isAudioInitialized]);
+
+  // Resume AudioContext if suspended
+  const resumeAudioContext = async () => {
+    if (audioContext && audioContext.state === 'suspended') {
+      try {
+        await audioContext.resume();
+        console.log('🎵 AudioContext resumed');
+      } catch (error) {
+        console.error('❌ Failed to resume AudioContext:', error);
+      }
+    }
+  };
 
   // Debug: Log sounds whenever they change
   console.log('🎵 SoundGrid - Current sounds:', sounds);
@@ -66,7 +128,7 @@ export default function SoundGrid() {
   const [currentlyPlaying, setCurrentlyPlaying] = useState<Sound | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
-  const handlePlay = (sound: Sound) => {
+  const handlePlay = async (sound: Sound) => {
     console.log('🎵 Playing sound:', sound);
     
     // Stop currently playing audio
@@ -76,14 +138,17 @@ export default function SoundGrid() {
     }
 
     try {
-      // Create new audio element from Blob URL
-      // Since we're storing files as Blob URLs, we need to get the actual audio data
-      const audio = new Audio();
-      audio.volume = 0.7;
+      // Resume AudioContext if suspended (important for mobile)
+      await resumeAudioContext();
       
-      // For now, we'll need to store the actual audio data or file reference
-      // This is a temporary solution - we'll create a proper audio player
+      // Create mobile-optimized audio element
+      const audio = isMobileDevice ? createMobileAudioElement() : new Audio();
+      if (!isMobileDevice) {
+        audio.volume = 0.7;
+      }
+      
       console.log('🔊 Creating audio element for:', sound.title);
+      console.log('📱 Using mobile audio:', isMobileDevice);
       
       audio.addEventListener('ended', () => {
         console.log('⏹️ Audio ended:', sound.title);
@@ -98,15 +163,38 @@ export default function SoundGrid() {
         setError(`Error playing audio: ${sound.title}`);
       });
 
-      audio.addEventListener('canplaythrough', () => {
+      audio.addEventListener('canplaythrough', async () => {
         console.log('✅ Audio ready to play:', sound.title);
-        audio.play().then(() => {
-          console.log('▶️ Audio started playing:', sound.title);
-          setCurrentlyPlaying(sound);
-          setAudioElement(audio);
-        }).catch(error => {
+        
+        try {
+          if (isMobileDevice) {
+            // Use mobile-specific audio handling
+            await handleMobileAutoplay(audio);
+            console.log('▶️ Mobile audio started playing:', sound.title);
+            setCurrentlyPlaying(sound);
+            setAudioElement(audio);
+          } else {
+            // Standard audio handling for desktop
+            await audio.play();
+            console.log('▶️ Desktop audio started playing:', sound.title);
+            setCurrentlyPlaying(sound);
+            setAudioElement(audio);
+          }
+        } catch (error) {
           console.error('❌ Error starting audio:', error);
-        });
+          
+          // Handle mobile-specific errors
+          if (isMobileDevice) {
+            const errorMessage = getMobileAudioErrorMessage(error);
+            setError(errorMessage);
+            
+            if (error instanceof Error && error.message === 'AUTOPLAY_BLOCKED') {
+              console.log('🔒 Mobile autoplay blocked - user needs to tap again');
+            }
+          } else {
+            setError(`Error playing audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        }
       });
 
       // Use the audioUrl from the sound object
@@ -124,6 +212,7 @@ export default function SoundGrid() {
       
     } catch (error) {
       console.error('❌ Error in handlePlay:', error);
+      setError(`Failed to play audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -324,6 +413,18 @@ export default function SoundGrid() {
             <Plus className="h-4 w-4" />
             <span>Add Sound</span>
           </button>
+        </div>
+      </div>
+
+      {/* Device Info Display */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <div className="flex items-center space-x-2">
+          <div className="text-blue-600">📱</div>
+          <p className="text-blue-700 text-sm">
+            Device: {isMobileDevice ? 'Mobile' : 'Desktop'} | 
+            Touch: {isTouchSupported ? 'Supported' : 'Not Supported'} | 
+            Audio: {isAudioInitialized ? 'Ready' : 'Initializing...'}
+          </p>
         </div>
       </div>
 
