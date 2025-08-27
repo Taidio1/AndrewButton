@@ -1,0 +1,21 @@
+{
+  "name": "AndrewButton",
+  "short_name": "AndrewButton",
+  "description": "Process MP4 videos to MP3 and create interactive sound buttons",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr"
+}
