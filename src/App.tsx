@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Music, Settings, Download, Upload, Trash2, Menu, Volume2, VolumeX } from 'lucide-react';
+import { Music, Settings, Download, Upload, Trash2, Menu } from 'lucide-react';
 import { useAudio } from './contexts/AudioContext';
 import SoundGrid from './components/SoundGrid';
 import { cleanupFFmpeg } from './utils/audioUtils';

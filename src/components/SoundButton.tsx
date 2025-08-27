@@ -63,13 +63,15 @@ export default function SoundButton({
   const handleTouchStart = (event: React.TouchEvent) => {
     console.log('👆 Touch start on sound button:', sound.title);
     // Add visual feedback for touch
-    event.currentTarget.style.transform = 'scale(0.95)';
+    const target = event.currentTarget as HTMLElement;
+    target.style.transform = 'scale(0.95)';
   };
 
   const handleTouchEnd = (event: React.TouchEvent) => {
     console.log('👆 Touch end on sound button:', sound.title);
     // Restore normal size
-    event.currentTarget.style.transform = 'scale(1)';
+    const target = event.currentTarget as HTMLElement;
+    target.style.transform = 'scale(1)';
   };
 
   // Handle volume change

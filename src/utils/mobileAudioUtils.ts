@@ -3,6 +3,11 @@
  * Handles common mobile audio playback issues
  */
 
+// Extend HTMLAudioElement interface for mobile-specific properties
+interface MobileAudioElement extends HTMLAudioElement {
+  playsInline?: boolean;
+}
+
 // Check if device is mobile
 export const isMobile = (): boolean => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -48,7 +53,7 @@ export const handleMobileAutoplay = async (audioElement: HTMLAudioElement): Prom
     try {
       // Set mobile-specific attributes
       audioElement.preload = 'auto';
-      audioElement.playsInline = true;
+      (audioElement as MobileAudioElement).playsInline = true;
       audioElement.muted = false;
       
       // Handle play promise for mobile
@@ -81,7 +86,7 @@ export const handleMobileAutoplay = async (audioElement: HTMLAudioElement): Prom
 
 // Create mobile-friendly audio element
 export const createMobileAudioElement = (): HTMLAudioElement => {
-  const audio = new Audio();
+  const audio = new Audio() as MobileAudioElement;
   
   // Mobile-specific settings
   audio.preload = 'auto';
