@@ -28,14 +28,14 @@ RUN npm run build
 
 # Etap 2: Serwer Node.js
 FROM base AS server-builder
-WORKDIR /app/server
+WORKDIR /app
 
-# Kopiowanie plików serwera
-COPY server/ ./
+# Kopiowanie plików serwera i package.json
+COPY server/ ./server/
 COPY package*.json ./
 
 # Instalacja zależności serwera
-RUN npm ci
+RUN npm ci --only=production
 
 # Etap 3: Final image
 FROM base AS production
@@ -48,7 +48,7 @@ RUN adduser -S nextjs -u 1001
 # Kopiowanie zbudowanej aplikacji React
 COPY --from=client-builder --chown=nextjs:nodejs /app/client/dist ./public
 
-# Kopiowanie serwera
+# Kopiowanie serwera i package.json
 COPY --from=server-builder --chown=nextjs:nodejs /app/server ./server
 COPY --from=server-builder --chown=nextjs:nodejs /app/package*.json ./
 
