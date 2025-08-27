@@ -39,24 +39,11 @@ docker-compose*.yml
 logs
 *.log
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage
-
 # Test files
 __tests__
 *.test.js
 *.test.ts
 *.test.tsx
-
-# Temporary folders
-tmp
-temp
 
 # Documentation
 README.md
