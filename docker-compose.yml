@@ -8,7 +8,7 @@ services:
     container_name: audio-button-grid
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "3001:5000"
     environment:
       - NODE_ENV=production
       - PORT=5000
