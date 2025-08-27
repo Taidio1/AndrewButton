@@ -48,9 +48,10 @@ RUN adduser -S nextjs -u 1001
 # Kopiowanie zbudowanej aplikacji React
 COPY --from=client-builder --chown=nextjs:nodejs /app/client/dist ./public
 
-# Kopiowanie serwera i package.json
+# Kopiowanie serwera, package.json i node_modules
 COPY --from=server-builder --chown=nextjs:nodejs /app/server ./server
 COPY --from=server-builder --chown=nextjs:nodejs /app/package*.json ./
+COPY --from=server-builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Sprawdzenie struktury katalogów
 RUN ls -la /app && echo "--- Server directory ---" && ls -la /app/server
